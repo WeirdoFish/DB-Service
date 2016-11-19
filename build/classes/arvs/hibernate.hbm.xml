@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE hibernate-mapping PUBLIC
+  "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+  "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+
+    <class name="arvs.database.Notes" table="notes">
+         <id name="id" column="id" type="int">
+            <generator class="foreign">
+                <param name="property">owners</param>
+            </generator>
+        </id>
+        <one-to-one name="owners" class="arvs.database.Owners"
+                    constrained="true">
+        </one-to-one>
+        <property name="time" column="time" type="timestamp"/>
+        <property name="title" column="title" type="string"/>
+        <property name="text" column="text" type="string"/>
+    </class>
+    
+    <class name="arvs.database.Owners" table="owners">
+       
+        <id name="id" column="id" type="int">
+            <generator class="increment" />
+        </id> 
+        <one-to-one name="notes" class="arvs.database.Notes" cascade="save-update"/>
+        <many-to-one name="username" class="arvs.database.Users" cascade="save-update" column="username"/>
+    </class>
+    
+    <class name="arvs.database.Users" table="users">
+        <id name="username" column="username" type="string"/>
+        <property name="password" column="password" type="string"/>
+    </class>
+
+</hibernate-mapping>
