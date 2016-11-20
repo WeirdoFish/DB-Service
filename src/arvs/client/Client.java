@@ -12,10 +12,11 @@ class Client extends Thread {
     private Boolean isTcp = true;
     static private String spl = "#-#";
 
-    public static void main(String args[]) {
+    public static void main(String args[]) throws SocketException, IOException {
         String dataSend = "1" + spl + "user" + spl + "passw";
-       //sendTCP(dataSend);
-       sendUDP(dataSend);
+        //sendTCP(dataSend);
+        sendUDP(dataSend);
+
     }
 
     static public void sendUDP(String str) {
@@ -27,13 +28,22 @@ class Client extends Thread {
                     = new DatagramPacket(data, data.length, addr, port);
             DatagramSocket udpSocket = new DatagramSocket();
             udpSocket.send(pack);
+//ответ
+            byte[] buf = new byte[64 * 1024];
+            DatagramPacket answ = new DatagramPacket(buf, buf.length);
+            udpSocket.receive(answ);
+            String answData = new String(answ.getData());
+            
+//вывод, далее - вызов функции-обработчика
+            System.out.println(answData + "resevd");
             udpSocket.close();
         } catch (Exception e) {
             System.out.println("init error: " + e);
-        } // вывод исключений
+        }
     }
 
-   static public void sendTCP(String str) {
+
+    static public void sendTCP(String str) {
         try {
             Socket tcpSocket = new Socket(host, port);
             tcpSocket.getOutputStream().write(str.getBytes());
