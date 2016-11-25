@@ -13,29 +13,26 @@ public class TCPServer extends Thread {
 
     public static void main(String[] args) {
         try {
-            // write();
+            //String test = "titles#-#katya";
+            // String res = parseMessage(test);
+            // System.out.println(res);
+
             int i = 0; //считаем подключения
-            
-            //TCP
             ServerSocket server = new ServerSocket(port, 0, InetAddress.getByName(host));
             System.out.println("TCP Server is started on " + host + ":" + port.toString());
-      
-            
+
             while (true) {
-                
-                new  TCPServer(i, server.accept());
+                new TCPServer(i, server.accept());
                 i++;
             }
-
         } catch (Exception e) {
             System.out.println("Server init error: " + e);
         }
     }
 
-    public  TCPServer(int num, Socket s) {
+    public TCPServer(int num, Socket s) {
         this.num = num;
         this.tcpSocket = s;
-
         //запускаем поток
         setDaemon(true);
         setPriority(NORM_PRIORITY);
@@ -53,17 +50,15 @@ public class TCPServer extends Thread {
             byte buf[] = new byte[64 * 1024];
             int r = input.read(buf);
             String data = new String(buf, 0, r);
-
+  
+            //обработка
             String answer = parseMessage(data);
-            output.write(data.getBytes());
-
+            System.out.println(answer);
+            output.write(answer.getBytes());
             tcpSocket.close();
         } catch (Exception e) {
             System.out.println("Thread init error: " + e);
         }
     }
 
-    
-
-   
 }

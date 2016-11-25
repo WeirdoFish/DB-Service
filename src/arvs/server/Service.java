@@ -4,31 +4,49 @@ import arvs.database.MyHibernateUtil;
 import arvs.database.Notes;
 import arvs.database.Owners;
 import arvs.database.Users;
+import java.util.Iterator;
+import java.util.List;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 
 public class Service {
 
+    static String spl = "#-#";
+
     static protected String parseMessage(String data) {
 
-        String[] parsedData = data.split("#-#", 3);
+        String[] parsedData = data.split(spl, 3);
         String operation = parsedData[0];
         System.out.println(parsedData[0]);
         System.out.println(parsedData[1]);
-        System.out.println(parsedData[2]);
-
+        //  System.out.println(parsedData[2]);
         switch (operation) {
             case "auth": {
                 String username = parsedData[1];
                 String password = parsedData[2];
-                //проверяем в бд, что данные верные и возвращаем ответ
-                break;
+                if (checkUser(username, password)) {
+                    return "success";
+                } else {
+                    return "fail";
+                }
             }
-            case "print": {
+            case "reg": {
+                String username = parsedData[1];
+                String password = parsedData[2];
+                if (addUser(username, password)) {
+                    return "success";
+                } else {
+                    return "fail";
+                }
+            }
+            case "titles": {
                 String neededUser = parsedData[1];
-                //поиск записей и отправка их назад
-                break;
+                return getTitles(neededUser);
+            }
+            case "note": {
+                String neededId = parsedData[1];
+                return getNote(neededId);
             }
             case "del": {
                 String delete = parsedData[1];
@@ -38,16 +56,18 @@ public class Service {
             }
             case "add": {
                 String username = parsedData[1];
-                String[] appendData = parsedData[2].split("#-#", 2);
+                String[] appendData = parsedData[2].split(spl, 2);
                 String title = appendData[0];
                 String text = appendData[1];
-
-                //ну и уже вполне готовая операция
-                break;
+                if (addNote(username, title, text)) {
+                    return "success";
+                } else {
+                    return "fail";
+                }
             }
             case "chng": {
                 String username = parsedData[1];
-                String[] appendData = parsedData[2].split("#-#", 2);
+                String[] appendData = parsedData[2].split(spl, 2);
                 String col = appendData[0];
                 String text = appendData[1];
                 //????
@@ -57,35 +77,162 @@ public class Service {
                 break;
         }
 
-        return "smth";
+        return "fail";
     }
 
-    static public void write() {
+    static public boolean addNote(String username, String title, String text) {
         Session session = MyHibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
         Integer resId = null;
         Integer itId = null;
         try {
             tx = session.beginTransaction();
-
-            Users user = new Users("newuser2", "newpas");
-            session.save(user);
+            List list = session.createQuery("FROM Users WHERE username='" + username + "'").list();
+            Users user = (Users) list.get(0);
 
             Owners owner = new Owners();
             owner.setUsername(user);
             session.save(owner);
 
-            Notes note = new Notes("titilr", "textxtxt", owner);
+            Notes note = new Notes(title, text, owner);
             session.save(note);
 
             owner.setNotes(note);
             session.save(owner);
             tx.commit();
+            return true;
         } catch (HibernateException e) {
             if (tx != null) {
                 tx.rollback();
             }
             e.printStackTrace();
+            return false;
+        } finally {
+            session.close();
+        }
+
+    }
+
+    static public boolean addUser(String username, String pswrd) {
+        Session session = MyHibernateUtil.getSessionFactory().openSession();
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            List list = session.createQuery("FROM Users WHERE username='" + username + "'").list();
+            if (!list.isEmpty()) {
+                return false;
+            }
+            Users user = new Users(username, pswrd);
+            session.save(user);
+            tx.commit();
+            return true;
+        } catch (HibernateException e) {
+            if (tx != null) {
+                tx.rollback();
+            }
+            e.printStackTrace();
+            return false;
+        } finally {
+            session.close();
+        }
+
+    }
+
+    static public String getTitles(String username) {
+        Session session = MyHibernateUtil.getSessionFactory().openSession();
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            List list = session.createQuery("FROM Owners WHERE username='" + username + "'").list();
+            if (list.isEmpty()) {
+                return "fail";
+            }
+            String result = "";
+            for (Iterator iter = list.iterator(); iter.hasNext();) {
+                Owners cur = (Owners) iter.next();
+                List note = session.createQuery("FROM Notes WHERE id='" + cur.getId() + "'").list();
+                Notes curNote = (Notes) note.get(0);
+
+                result += cur.getId().toString();
+                result += spl;
+                result += curNote.getTitle();
+                result += " ";
+                result += curNote.getTime().toGMTString();
+                result += spl;
+            }
+
+            tx.commit();
+            return result;
+        } catch (HibernateException e) {
+            if (tx != null) {
+                tx.rollback();
+            }
+            e.printStackTrace();
+             return "fail";
+        } finally {
+            session.close();
+        }
+
+    }
+
+    static public boolean checkUser(String username, String pswrd) {
+        Session session = MyHibernateUtil.getSessionFactory().openSession();
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            List list = session.createQuery("FROM Users WHERE username='" + username + "'").list();
+            tx.commit();
+            if (list.isEmpty()) {
+                return false;
+            }
+            Users user = (Users) list.get(0);
+            if (pswrd.equals(user.getPassword())) {
+                return true;
+            }
+
+            return false;
+
+        } catch (HibernateException e) {
+            if (tx != null) {
+                tx.rollback();
+            }
+            e.printStackTrace();
+            return false;
+        } finally {
+            session.close();
+        }
+
+    }
+
+    static public String getNote(String id) {
+        Session session = MyHibernateUtil.getSessionFactory().openSession();
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            List list = session.createQuery("FROM Notes WHERE id='" + id + "'").list();
+            if (list.isEmpty()) {
+                return null;
+            }
+            String result = "";
+            //  for (Iterator iter = list.iterator(); iter.hasNext();) {
+            Notes cur = (Notes) list.get(0);
+            result += cur.getId().toString();
+            result += spl;
+            result += cur.getTitle();
+            result += spl;
+            result += cur.getTime().toGMTString();
+            result += spl;
+            result += cur.getText();
+            //  }
+
+            tx.commit();
+            return result;
+        } catch (HibernateException e) {
+            if (tx != null) {
+                tx.rollback();
+            }
+            e.printStackTrace();
+            return null;
         } finally {
             session.close();
         }
