@@ -4,6 +4,7 @@ import static arvs.server.Service.parseMessage;
 import java.net.*;
 import java.io.*;
 import static java.lang.Thread.NORM_PRIORITY;
+import java.util.Arrays;
 
 public class UDPServer extends Thread {
 
@@ -54,8 +55,9 @@ public class UDPServer extends Thread {
     public void run() {
         try {
             System.out.println("Hello, new udp client! ID=" + num);
-
-            String result = new String(msg.getData());
+            byte buffer[] = new byte[msg.getLength()];
+            buffer = Arrays.copyOf(msg.getData(),msg.getLength());
+            String result = new String(buffer);
             System.out.println(result);
 
 //Обработка

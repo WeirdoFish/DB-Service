@@ -50,9 +50,7 @@ public class Service {
             }
             case "del": {
                 String delete = parsedData[1];
-                //обращение к owners
-
-                break;
+                return delNote(delete);
             }
             case "add": {
                 String username = parsedData[1];
@@ -65,13 +63,12 @@ public class Service {
                     return "fail";
                 }
             }
-            case "chng": {
-                String username = parsedData[1];
+            case "upd": {
+                String id = parsedData[1];
                 String[] appendData = parsedData[2].split(spl, 2);
-                String col = appendData[0];
+                String title = appendData[0];
                 String text = appendData[1];
-                //????
-                break;
+                return updNote(id,title,text);
             }
             default:
                 break;
@@ -154,11 +151,13 @@ public class Service {
                 Notes curNote = (Notes) note.get(0);
 
                 result += cur.getId().toString();
-                result += spl;
+                result += " ";
                 result += curNote.getTitle();
                 result += " ";
                 result += curNote.getTime().toGMTString();
-                result += spl;
+                if (iter.hasNext()) {
+                    result += spl;
+                }
             }
 
             tx.commit();
@@ -168,7 +167,7 @@ public class Service {
                 tx.rollback();
             }
             e.printStackTrace();
-             return "fail";
+            return "fail";
         } finally {
             session.close();
         }
@@ -216,12 +215,12 @@ public class Service {
             String result = "";
             //  for (Iterator iter = list.iterator(); iter.hasNext();) {
             Notes cur = (Notes) list.get(0);
-            result += cur.getId().toString();
-            result += spl;
+            // result += cur.getId().toString();
+            //  result += spl;
             result += cur.getTitle();
             result += spl;
-            result += cur.getTime().toGMTString();
-            result += spl;
+            //result += cur.getTime().toGMTString();
+            // result += spl;
             result += cur.getText();
             //  }
 
@@ -238,4 +237,47 @@ public class Service {
         }
 
     }
+
+    static public String delNote(String id) {
+        Session session = MyHibernateUtil.getSessionFactory().openSession();
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            session.createQuery("DELETE FROM Owners WHERE id='" + id + "'").executeUpdate();;
+
+            tx.commit();
+            return "success";
+        } catch (HibernateException e) {
+            if (tx != null) {
+                tx.rollback();
+            }
+            e.printStackTrace();
+            return "fail";
+        } finally {
+            session.close();
+        }
+
+    }
+    
+     static public String updNote(String id,String title, String text) {
+        Session session = MyHibernateUtil.getSessionFactory().openSession();
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            session.createQuery("UPDATE Notes SET title='"+title+"', text='"+text+"' WHERE id='" + id + "'").executeUpdate();;
+
+            tx.commit();
+            return "success";
+        } catch (HibernateException e) {
+            if (tx != null) {
+                tx.rollback();
+            }
+            e.printStackTrace();
+            return "fail";
+        } finally {
+            session.close();
+        }
+
+    }
+
 }

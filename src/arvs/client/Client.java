@@ -9,6 +9,7 @@ import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -21,6 +22,9 @@ import javax.swing.JRadioButton;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Document;
 
 class Client extends Thread {
 
@@ -41,8 +45,10 @@ class Client extends Thread {
     static private JTextArea passw_area = new JTextArea();
     static private JLabel label = new JLabel();
     static private JButton addButton;
+    static private JButton delButton;
+    static private JButton updButton;
     static private JButton showButton;
-    static private JButton udpListButton;
+    static private JButton clearButton;
     static private JTextArea noteField;
     static private JTextField titleField;
     static private JList titlesList;
@@ -68,12 +74,12 @@ class Client extends Thread {
             }
         });
     }
-    
-     static private void updateList(DefaultListModel listModel) {
+
+    static private void updateList(String[] str) {
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 gui.changeLabel(user);
-                gui.updList(listModel);
+                gui.updList(str);
             }
         });
     }
@@ -99,6 +105,17 @@ class Client extends Thread {
                 flagUDP.setSelected(true);
                 flagTCP.setSelected(false);
                 System.out.println("udp now");
+            }
+        });
+
+        clearButton = gui.getClearBut();
+        clearButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+
+                titleField.setText("");
+                noteField.setText("");
+
             }
         });
 
@@ -131,6 +148,8 @@ class Client extends Thread {
                     public void actionPerformed(ActionEvent event) {
                         if (!user_area.getText().equals("") && !passw_area.getText().equals("")) {
                             String username = user_area.getText();
+                            user_area.setColumns(1);
+                            passw_area.setColumns(1);
                             String passw = passw_area.getText();
                             String req = "reg" + spl + username + spl + passw;
                             String res = send(req);
@@ -141,9 +160,8 @@ class Client extends Thread {
                                 passw_area.setText("");
                                 authorized = true;
                                 user = username;
-
-                                //label.setText("dd");
-                                //gui.changeLabel("dd");
+                                updateLabel();
+                                getNotesList();
                                 regFrame.setVisible(false);
                             }
                         }
@@ -194,7 +212,6 @@ class Client extends Thread {
                                 user = username;
                                 updateLabel();
                                 System.out.println(user);
-                                label.setText(username);
                                 regFrame.setVisible(false);
                                 getNotesList();
                             }
@@ -213,14 +230,104 @@ class Client extends Thread {
         addButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent event) {
+                if (!authorized) {
+                    JOptionPane.showMessageDialog(gui, "Необходимо авторизоваться!");
+                    return;
+                }
                 String title = titleField.getText();
                 String text = noteField.getText();
                 if (!title.equals("") && !text.equals("")) {
-                    String req = "add" + spl + user + spl + title + spl + text;
-                    System.out.println(send(req));
-                    getNotesList();
+                    if (title.contains(spl)) {
+                        JOptionPane.showMessageDialog(gui, "Заголовок не должен содержать '" + spl + "'!");
+                    } else {
+                        String req = "add" + spl + user + spl + title + spl + text;
+                        System.out.println(send(req));
+                        getNotesList();
+                    }
                 } else {
                     JOptionPane.showMessageDialog(gui, "Заполните поля!");
+                }
+            }
+        });
+
+        showButton = gui.getShowBut();
+        showButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                if (!authorized) {
+                    JOptionPane.showMessageDialog(gui, "Необходимо авторизоваться!");
+                    return;
+                }
+                String selected = titlesList.getSelectedValue().toString();
+                if (selected == null) {
+                    JOptionPane.showMessageDialog(gui, "Вы ничего не выбрали!");
+                    return;
+                }
+                String[] tmp = selected.split(" ", 2);
+                String req = "note" + spl + tmp[0];
+                String answ = send(req);
+
+                tmp = answ.split(spl, 2);
+                titleField.setText(tmp[0]);
+                noteField.setText(tmp[1]);
+
+            }
+        });
+
+        delButton = gui.getDelBut();
+        delButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                if (!authorized) {
+                    JOptionPane.showMessageDialog(gui, "Необходимо авторизоваться!");
+                    return;
+                }
+                String selected = titlesList.getSelectedValue().toString();
+                if (selected == null) {
+                    JOptionPane.showMessageDialog(gui, "Вы ничего не выбрали!");
+                    return;
+                }
+                String[] tmp = selected.split(" ", 2);
+                String req = "del" + spl + tmp[0];
+                String answ = send(req);
+
+                tmp = answ.split(spl, 2);
+                if (tmp[0].equals("success")) {
+                    JOptionPane.showMessageDialog(gui, "Запись успешно удалена");
+                } else {
+                    JOptionPane.showMessageDialog(gui, "Не удалось удалить запись");
+                }
+                getNotesList();
+            }
+        });
+
+        updButton = gui.getUpdBut();
+        updButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                if (!authorized) {
+                    JOptionPane.showMessageDialog(gui, "Необходимо авторизоваться!");
+                    return;
+                }
+                String title = titleField.getText();
+                String text = noteField.getText();
+                String selected = titlesList.getSelectedValue().toString();
+                if (!title.equals("") && !text.equals("") && selected != null) {
+                    String[] id = selected.split(" ", 2);
+                    if (title.contains(spl)) {
+                        JOptionPane.showMessageDialog(gui, "Заголовок не должен содержать '" + spl + "'!");
+                    } else {
+                        String req = "upd" + spl + id[0] + spl + title + spl + text;
+                        String answ = send(req);
+                        if (answ.equals("success")) {
+                            JOptionPane.showMessageDialog(gui, "Успешно обновлено");
+                        } else {
+                            JOptionPane.showMessageDialog(gui, "Не удалось обновить запись");
+                        }
+                        getNotesList();
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(gui, "Заполните поля и выберите запись!");
                 }
             }
         });
@@ -228,18 +335,15 @@ class Client extends Thread {
 
     static private void getNotesList() {
         String req = "titles" + spl + user;
-        String answ = send(req);
-        String[] parsed = answ.split(spl);
-        DefaultListModel listModel = new DefaultListModel();
 
-        for (int i = 0; i < parsed.length - 3; i += 3) {
-            String tmp = parsed[i] + " " + parsed[i + 1] + " " + parsed[i + 2];
-            listModel.addElement(tmp);
+        String answ = send(req);
+        if (answ.equals("fail")) {
+            String[] empty = {"empty"};
+            updateList(empty);
+            return;
         }
-        updateList(listModel);
-        //titlesList.setModel(listModel);
-        //titlesList = new JList(listModel);
-        //titlesList.setLayoutOrientation(JList.VERTICAL);
+        String[] parsed = answ.split(spl);
+        updateList(parsed);
     }
 
     static public String sendUDP(String str) {
@@ -255,7 +359,8 @@ class Client extends Thread {
             byte[] buf = new byte[64 * 1024];
             DatagramPacket answ = new DatagramPacket(buf, buf.length);
             udpSocket.receive(answ);
-            String answData = new String(answ.getData());
+            buf = Arrays.copyOf(answ.getData(), answ.getLength());
+            String answData = new String(buf);
 
 //вывод, далее - вызов функции-обработчика
             System.out.println(answData + "resevd");
