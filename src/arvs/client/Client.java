@@ -1,16 +1,14 @@
 package arvs.client;
 
 import arvs.client.visualisation.GUI;
-import java.awt.Dialog;
+import helma.xmlrpc.XmlRpcClient;
 import java.awt.Dimension;
-import java.awt.TextArea;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
 import java.util.Arrays;
-import javax.swing.DefaultListModel;
+import java.util.Vector;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -22,16 +20,13 @@ import javax.swing.JRadioButton;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
-import javax.swing.text.AttributeSet;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.Document;
 
 class Client extends Thread {
 
     static Integer port = 8411;
     static String host = "localhost";
-    static private Boolean isTcp = true;
-    static private String spl = "#-#";
+    static private String method = "TCP";
+    final static private String spl = "#-#";
 
     static private String user = "";
     static private Boolean authorized = false;
@@ -39,6 +34,8 @@ class Client extends Thread {
     static private GUI gui;
     static private JRadioButton flagTCP;
     static private JRadioButton flagUDP;
+    static private JRadioButton flagXML;
+    static private JRadioButton flagRMI;
     static private JMenuItem auth;
     static private JMenuItem register;
     static private JTextArea user_area = new JTextArea();
@@ -87,13 +84,17 @@ class Client extends Thread {
     static public void initEvents() {
         flagTCP = gui.getRadioTCP();
         flagUDP = gui.getRadioUDP();
+        flagXML = gui.getRadioXML();
+        flagRMI = gui.getRadioRMI();
 
         flagTCP.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent event) {
-                isTcp = true;
+                method = "TCP";
                 flagTCP.setSelected(true);
                 flagUDP.setSelected(false);
+                flagRMI.setSelected(false);
+                flagXML.setSelected(false);
                 System.out.println("tcp now");
             }
         });
@@ -101,10 +102,39 @@ class Client extends Thread {
         flagUDP.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent event) {
-                isTcp = false;
+                method = "UDP";
                 flagUDP.setSelected(true);
                 flagTCP.setSelected(false);
+
+                flagRMI.setSelected(false);
+                flagXML.setSelected(false);
                 System.out.println("udp now");
+            }
+        });
+        
+        flagXML.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                method = "XML";
+                flagUDP.setSelected(false);
+                flagTCP.setSelected(false);
+
+                flagRMI.setSelected(false);
+                flagXML.setSelected(true);
+                System.out.println("xml-rpc now");
+            }
+        });
+        
+        flagRMI.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                method = "RMI";
+                flagUDP.setSelected(false);
+                flagTCP.setSelected(false);
+
+                flagRMI.setSelected(true);
+                flagXML.setSelected(false);
+                System.out.println("rmi now");
             }
         });
 
@@ -391,11 +421,28 @@ class Client extends Thread {
         } // вывод исключений
     }
 
-    static public String send(String str) {
-        if (isTcp) {
-            return sendTCP(str);
-        } else {
-            return sendUDP(str);
+    static public String sendXML(String str) {
+        try {
+            XmlRpcClient server = new XmlRpcClient("http://localhost:8841");
+            Vector params = new Vector();
+            params.addElement(str);
+            String result = (String) server.execute("service.workWithDB", params);
+            return result;
+        } catch (Exception e) {
+            System.out.println("Smth wrong: " + e);
+            return "fail";
         }
+    }
+
+    static public String send(String str) {
+     
+        switch(method){
+            case "TCP": return sendTCP(str);
+            case "UDP": return sendUDP(str);
+            case "XML": return sendXML(str);
+            case "RMI": return "later";
+            default: return "fail";
+        }
+       
     }
 }
