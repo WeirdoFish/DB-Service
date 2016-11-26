@@ -1,6 +1,7 @@
 package arvs.client;
 
 import arvs.client.visualisation.GUI;
+import helma.xmlrpc.XmlRpc;
 import helma.xmlrpc.XmlRpcClient;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
@@ -21,11 +22,9 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
-class Client extends Thread {
+class XMLClient extends Thread {
 
-    static Integer port = 8411;
-    static String host = "localhost";
-    static private String method = "TCP";
+    private static XmlRpcClient server;
     final static private String spl = "#-#";
 
     static private String user = "";
@@ -54,6 +53,9 @@ class Client extends Thread {
         // String dataSend = "1" + spl + "user" + spl + "passw";
         //sendTCP(dataSend);
         //sendUDP(dataSend);
+
+      server = new XmlRpcClient("http://localhost:8841");
+
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
                 gui = new GUI();
@@ -86,60 +88,10 @@ class Client extends Thread {
         flagUDP = gui.getRadioUDP();
         flagXML = gui.getRadioXML();
         flagRMI = gui.getRadioRMI();
-
-        flagRMI.setVisible(false);
+        flagTCP.setVisible(false);
+        flagUDP.setVisible(false);
         flagXML.setVisible(false);
-        
-        flagTCP.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                method = "TCP";
-                flagTCP.setSelected(true);
-                flagUDP.setSelected(false);
-                flagRMI.setSelected(false);
-                flagXML.setSelected(false);
-                System.out.println("tcp now");
-            }
-        });
-
-        flagUDP.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                method = "UDP";
-                flagUDP.setSelected(true);
-                flagTCP.setSelected(false);
-
-                flagRMI.setSelected(false);
-                flagXML.setSelected(false);
-                System.out.println("udp now");
-            }
-        });
-        
-        flagXML.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                method = "XML";
-                flagUDP.setSelected(false);
-                flagTCP.setSelected(false);
-
-                flagRMI.setSelected(false);
-                flagXML.setSelected(true);
-                System.out.println("xml-rpc now");
-            }
-        });
-        
-        flagRMI.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                method = "RMI";
-                flagUDP.setSelected(false);
-                flagTCP.setSelected(false);
-
-                flagRMI.setSelected(true);
-                flagXML.setSelected(false);
-                System.out.println("rmi now");
-            }
-        });
+        flagRMI.setVisible(false);
 
         clearButton = gui.getClearBut();
         clearButton.addActionListener(new ActionListener() {
@@ -184,8 +136,11 @@ class Client extends Thread {
                             user_area.setColumns(1);
                             passw_area.setColumns(1);
                             String passw = passw_area.getText();
-                            String req = "reg" + spl + username + spl + passw;
-                            String res = send(req);
+                            // String req = "reg" + spl + username + spl + passw;
+                            Vector params = new Vector();
+                            params.add(username);
+                            params.add(passw);
+                            String res = sendXML(params, "reg");
                             if (res == null || res.equals("fail")) {
                                 JOptionPane.showMessageDialog(regFrame, "Имя пользователя существует!");
                             } else {
@@ -234,8 +189,11 @@ class Client extends Thread {
                         if (!user_area.getText().equals("") && !passw_area.getText().equals("")) {
                             String username = user_area.getText();
                             String passw = passw_area.getText();
-                            String req = "auth" + spl + username + spl + passw;
-                            String res = send(req);
+                            // String req = "auth" + spl + username + spl + passw;
+                            Vector params = new Vector();
+                            params.add(username);
+                            params.add(passw);
+                            String res = sendXML(params, "check");
                             if (res == null || res.equals("fail")) {
                                 JOptionPane.showMessageDialog(regFrame, "Неверные данные!");
                             } else {
@@ -274,7 +232,12 @@ class Client extends Thread {
                         JOptionPane.showMessageDialog(gui, "Заголовок не должен содержать '" + spl + "'!");
                     } else {
                         String req = "add" + spl + user + spl + title + spl + text;
-                        System.out.println(send(req));
+                        // System.out.println(send(req));
+                        Vector params = new Vector();
+                        params.add(user);
+                        params.add(title);
+                        params.add(text);
+                        sendXML(params, "add");
                         getNotesList();
                     }
                 } else {
@@ -297,8 +260,10 @@ class Client extends Thread {
                     return;
                 }
                 String[] tmp = selected.split(" ", 2);
-                String req = "note" + spl + tmp[0];
-                String answ = send(req);
+                // String req = "note" + spl + tmp[0];
+                Vector params = new Vector();
+                params.add(tmp[0]);
+                String answ = sendXML(params, "note");
 
                 tmp = answ.split(spl, 2);
                 titleField.setText(tmp[0]);
@@ -321,8 +286,10 @@ class Client extends Thread {
                     return;
                 }
                 String[] tmp = selected.split(" ", 2);
-                String req = "del" + spl + tmp[0];
-                String answ = send(req);
+                // String req = "del" + spl + tmp[0];
+                Vector params = new Vector();
+                params.add(tmp[0]);
+                String answ = sendXML(params, "del");
 
                 tmp = answ.split(spl, 2);
                 if (tmp[0].equals("success")) {
@@ -350,8 +317,13 @@ class Client extends Thread {
                     if (title.contains(spl)) {
                         JOptionPane.showMessageDialog(gui, "Заголовок не должен содержать '" + spl + "'!");
                     } else {
-                        String req = "upd" + spl + id[0] + spl + title + spl + text;
-                        String answ = send(req);
+                        //  String req = "upd" + spl + id[0] + spl + title + spl + text;
+
+                        Vector params = new Vector();
+                        params.add(id[0]);
+                        params.add(title);
+                        params.add(text);
+                        String answ = sendXML(params, "upd");
                         if (answ.equals("success")) {
                             JOptionPane.showMessageDialog(gui, "Успешно обновлено");
                         } else {
@@ -367,9 +339,10 @@ class Client extends Thread {
     }
 
     static private void getNotesList() {
-        String req = "titles" + spl + user;
-
-        String answ = send(req);
+        // String req = "titles" + spl + user;
+        Vector params = new Vector();
+        params.add(user);
+        String answ = sendXML(params, "titles");
         if (answ.equals("fail")) {
             String[] empty = {"empty"};
             updateList(empty);
@@ -379,60 +352,18 @@ class Client extends Thread {
         updateList(parsed);
     }
 
-    static public String sendUDP(String str) {
+    static public String sendXML(Vector params, String fun) {
         try {
-            byte[] data = str.getBytes();
-
-            InetAddress addr = InetAddress.getByName(host);
-            DatagramPacket pack
-                    = new DatagramPacket(data, data.length, addr, port);
-            DatagramSocket udpSocket = new DatagramSocket();
-            udpSocket.send(pack);
-//ответ
-            byte[] buf = new byte[64 * 1024];
-            DatagramPacket answ = new DatagramPacket(buf, buf.length);
-            udpSocket.receive(answ);
-            buf = Arrays.copyOf(answ.getData(), answ.getLength());
-            String answData = new String(buf);
-
-//вывод, далее - вызов функции-обработчика
-            System.out.println(answData + "resevd");
-            udpSocket.close();
-            return answData;
+             System.out.println("service." + fun);
+             
+             XmlRpc.setEncoding("UTF8");
+            String result = (String) server.execute("service." + fun, params);
+             System.out.println(result);
+            return result;
         } catch (Exception e) {
-            System.out.println("init error: " + e);
-            return null;
+            System.out.println("Smth wrong: " + e);
+            return "fail";
         }
     }
 
-    static public String sendTCP(String str) {
-        try {
-            Socket tcpSocket = new Socket(host, port);
-            tcpSocket.getOutputStream().write(str.getBytes());
-
-            // читаем ответ
-            byte buf[] = new byte[64 * 1024];
-            int r = tcpSocket.getInputStream().read(buf);
-            String data = new String(buf, 0, r);
-
-            // выводим ответ в консоль
-            System.out.println(data);
-            return data;
-        } catch (Exception e) {
-            System.out.println("init error: " + e);
-            return null;
-        } // вывод исключений
-    }
-    
-    static public String send(String str) {
-     
-        switch(method){
-            case "TCP": return sendTCP(str);
-            case "UDP": return sendUDP(str);
-           // case "XML": return sendXML(str);
-            case "RMI": return "later";
-            default: return "fail";
-        }
-       
-    }
 }
