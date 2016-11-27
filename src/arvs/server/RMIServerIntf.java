@@ -7,13 +7,11 @@ import java.util.ArrayList;
 
 public interface RMIServerIntf extends Remote {
 
-    //public String getMessage() throws RemoteException;
-
     public boolean add(DBNote req) throws RemoteException;
 
     public boolean reg(String username, String pswrd) throws RemoteException;
 
-    public ArrayList<String> titles(String username) throws RemoteException;
+    public String[] titles(String username) throws RemoteException;
 
     public boolean check(String username, String pswrd) throws RemoteException;
 

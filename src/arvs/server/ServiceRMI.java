@@ -72,19 +72,26 @@ public class ServiceRMI {
 
     }
 
-    static public ArrayList<String> getTitles(String username) {
+    static public String[] getTitles(String username) {
         Session session = MyHibernateUtil.getSessionFactory().openSession();
         Transaction tx = null;
-        ArrayList<String> resp = new ArrayList<String>();
         try {
             tx = session.beginTransaction();
             List list = session.createQuery("FROM Owners WHERE username='" + username + "'").list();
             if (list.isEmpty()) {
 
-                resp.add("fail");
+                String[] resp = new String[1];
+                resp[0] = "fail";
                 return resp;
             }
-
+            int len = 0;
+            for (Iterator iter = list.iterator(); iter.hasNext();) {
+                len++;
+                Owners cur = (Owners) iter.next();
+            }
+            String[] resp = new String[len];
+            
+            int i = 0;
             for (Iterator iter = list.iterator(); iter.hasNext();) {
                 Owners cur = (Owners) iter.next();
                 List note = session.createQuery("FROM Notes WHERE id='" + cur.getId() + "'").list();
@@ -95,7 +102,8 @@ public class ServiceRMI {
                 tmp += curNote.getTitle();
                 tmp += " ";
                 tmp += curNote.getTime().toGMTString();
-                resp.add(tmp);
+                resp[i] = (tmp);
+                i++;
             }
 
             tx.commit();
@@ -105,8 +113,10 @@ public class ServiceRMI {
                 tx.rollback();
             }
             e.printStackTrace();
-            resp.add("fail");
-            return resp;
+            
+                String[] resp = new String[1];
+                resp[0] = "fail";
+                return resp;
         } finally {
             session.close();
         }

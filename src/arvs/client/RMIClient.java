@@ -12,8 +12,12 @@ import java.io.*;
 import java.net.*;
 import java.rmi.Naming;
 import java.rmi.RMISecurityManager;
+import java.rmi.RemoteException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Vector;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -30,7 +34,6 @@ class RMIClient extends Thread {
 
     private static RMIClient cli;
     private static RMIServerIntf obj;
-    final static private String spl = "#-#";
 
     static private String user = "";
     static private Boolean authorized = false;
@@ -63,14 +66,25 @@ class RMIClient extends Thread {
         }
 
         cli = new RMIClient();
-        
+
+        try {
+            obj = (RMIServerIntf) Naming.lookup("rmi://localhost/RMIServer");
+
+        } catch (Exception e) {
+            System.err.println("RMIClient exception: " + e);
+            e.printStackTrace();
+
+        }
+
         java.awt.EventQueue.invokeLater(new Runnable() {
+
             public void run() {
                 gui = new GUI();
                 gui.setVisible(true);
                 initEvents();
             }
-        });
+        }
+        );
     }
 
     static private void updateLabel() {
@@ -143,12 +157,13 @@ class RMIClient extends Thread {
                             user_area.setColumns(1);
                             passw_area.setColumns(1);
                             String passw = passw_area.getText();
-                            // String req = "reg" + spl + username + spl + passw;
-                            Vector params = new Vector();
-                            params.add(username);
-                            params.add(passw);
-                            String res = sendXML(params, "reg");
-                            if (res == null || res.equals("fail")) {
+                            boolean flag = false;
+                            try {
+                                flag = obj.reg(username, passw);
+                            } catch (RemoteException ex) {
+                                Logger.getLogger(RMIClient.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                            if (!flag) {
                                 JOptionPane.showMessageDialog(regFrame, "Имя пользователя существует!");
                             } else {
                                 user_area.setText("");
@@ -156,7 +171,11 @@ class RMIClient extends Thread {
                                 authorized = true;
                                 user = username;
                                 updateLabel();
-                                getNotesList();
+                                try {
+                                    getNotesList();
+                                } catch (RemoteException ex) {
+                                    Logger.getLogger(RMIClient.class.getName()).log(Level.SEVERE, null, ex);
+                                }
                                 regFrame.setVisible(false);
                             }
                         }
@@ -196,12 +215,13 @@ class RMIClient extends Thread {
                         if (!user_area.getText().equals("") && !passw_area.getText().equals("")) {
                             String username = user_area.getText();
                             String passw = passw_area.getText();
-                            // String req = "auth" + spl + username + spl + passw;
-                            Vector params = new Vector();
-                            params.add(username);
-                            params.add(passw);
-                            String res = sendXML(params, "check");
-                            if (res == null || res.equals("fail")) {
+                            boolean flag = false;
+                            try {
+                                flag = obj.check(username, passw);
+                            } catch (RemoteException ex) {
+                                Logger.getLogger(RMIClient.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                            if (!flag) {
                                 JOptionPane.showMessageDialog(regFrame, "Неверные данные!");
                             } else {
                                 user_area.setText("");
@@ -211,7 +231,11 @@ class RMIClient extends Thread {
                                 updateLabel();
                                 System.out.println(user);
                                 regFrame.setVisible(false);
-                                getNotesList();
+                                try {
+                                    getNotesList();
+                                } catch (RemoteException ex) {
+                                    Logger.getLogger(RMIClient.class.getName()).log(Level.SEVERE, null, ex);
+                                }
                             }
                         }
                     }
@@ -235,18 +259,22 @@ class RMIClient extends Thread {
                 String title = titleField.getText();
                 String text = noteField.getText();
                 if (!title.equals("") && !text.equals("")) {
-                    if (title.contains(spl)) {
-                        JOptionPane.showMessageDialog(gui, "Заголовок не должен содержать '" + spl + "'!");
-                    } else {
-                        String req = "add" + spl + user + spl + title + spl + text;
-                        // System.out.println(send(req));
-                        Vector params = new Vector();
-                        params.add(user);
-                        params.add(title);
-                        params.add(text);
-                        sendXML(params, "add");
-                        getNotesList();
+
+                    DBNote req = new DBNote();
+                    req.setName(user);
+                    req.setText(text);
+                    req.setTitle(title);
+                    try {
+                        obj.add(req);
+                    } catch (RemoteException ex) {
+                        Logger.getLogger(RMIClient.class.getName()).log(Level.SEVERE, null, ex);
                     }
+                    try {
+                        getNotesList();
+                    } catch (RemoteException ex) {
+                        Logger.getLogger(RMIClient.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+
                 } else {
                     JOptionPane.showMessageDialog(gui, "Заполните поля!");
                 }
@@ -267,14 +295,14 @@ class RMIClient extends Thread {
                     return;
                 }
                 String[] tmp = selected.split(" ", 2);
-                // String req = "note" + spl + tmp[0];
-                Vector params = new Vector();
-                params.add(tmp[0]);
-                String answ = sendXML(params, "note");
-
-                tmp = answ.split(spl, 2);
-                titleField.setText(tmp[0]);
-                noteField.setText(tmp[1]);
+                DBNote note;
+                try {
+                    note = obj.note(tmp[0]);
+                    titleField.setText(note.getTitle());
+                    noteField.setText(note.getText());
+                } catch (RemoteException ex) {
+                    Logger.getLogger(RMIClient.class.getName()).log(Level.SEVERE, null, ex);
+                }
 
             }
         });
@@ -293,18 +321,23 @@ class RMIClient extends Thread {
                     return;
                 }
                 String[] tmp = selected.split(" ", 2);
-                // String req = "del" + spl + tmp[0];
-                Vector params = new Vector();
-                params.add(tmp[0]);
-                String answ = sendXML(params, "del");
+                boolean flag = false;
+                try {
+                    flag = obj.del(tmp[0]);
+                } catch (RemoteException ex) {
+                    Logger.getLogger(RMIClient.class.getName()).log(Level.SEVERE, null, ex);
+                }
 
-                tmp = answ.split(spl, 2);
-                if (tmp[0].equals("success")) {
+                if (flag) {
                     JOptionPane.showMessageDialog(gui, "Запись успешно удалена");
                 } else {
                     JOptionPane.showMessageDialog(gui, "Не удалось удалить запись");
                 }
-                getNotesList();
+                try {
+                    getNotesList();
+                } catch (RemoteException ex) {
+                    Logger.getLogger(RMIClient.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
         });
 
@@ -321,23 +354,25 @@ class RMIClient extends Thread {
                 String selected = titlesList.getSelectedValue().toString();
                 if (!title.equals("") && !text.equals("") && selected != null) {
                     String[] id = selected.split(" ", 2);
-                    if (title.contains(spl)) {
-                        JOptionPane.showMessageDialog(gui, "Заголовок не должен содержать '" + spl + "'!");
-                    } else {
-                        //  String req = "upd" + spl + id[0] + spl + title + spl + text;
 
-                        Vector params = new Vector();
-                        params.add(id[0]);
-                        params.add(title);
-                        params.add(text);
-                        String answ = sendXML(params, "upd");
-                        if (answ.equals("success")) {
-                            JOptionPane.showMessageDialog(gui, "Успешно обновлено");
-                        } else {
-                            JOptionPane.showMessageDialog(gui, "Не удалось обновить запись");
-                        }
-                        getNotesList();
+                    boolean flag = false;
+                    try {
+                        flag = obj.upd(id[0], title, text);
+                    } catch (RemoteException ex) {
+                        Logger.getLogger(RMIClient.class.getName()).log(Level.SEVERE, null, ex);
                     }
+
+                    if (flag) {
+                        JOptionPane.showMessageDialog(gui, "Успешно обновлено");
+                    } else {
+                        JOptionPane.showMessageDialog(gui, "Не удалось обновить запись");
+                    }
+                    try {
+                        getNotesList();
+                    } catch (RemoteException ex) {
+                        Logger.getLogger(RMIClient.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+
                 } else {
                     JOptionPane.showMessageDialog(gui, "Заполните поля и выберите запись!");
                 }
@@ -345,30 +380,13 @@ class RMIClient extends Thread {
         });
     }
 
-    static private void getNotesList() {
-        // String req = "titles" + spl + user;
-        Vector params = new Vector();
-        params.add(user);
-        String answ = sendXML(params, "titles");
-        if (answ.equals("fail")) {
+    static private void getNotesList() throws RemoteException {
+        String[] answ = obj.titles(user);
+        if (answ[0].equals("fail")) {
             String[] empty = {"empty"};
             updateList(empty);
             return;
         }
-        String[] parsed = answ.split(spl);
-        updateList(parsed);
+        updateList(answ);
     }
-
-    static public DBNote sendRMI(DBNote note) {
-
-        try {
-            obj = (RMIServerIntf) Naming.lookup("rmi://localhost/RMIServer");
-            return obj.getObj(note);
-        } catch (Exception e) {
-            System.err.println("RMIClient exception: " + e);
-            e.printStackTrace();
-            return null;
-        }
-    }
-
 }

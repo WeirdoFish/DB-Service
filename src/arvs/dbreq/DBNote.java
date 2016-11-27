@@ -4,9 +4,7 @@ import java.io.Serializable;
 
 public class DBNote implements Serializable {
 
-    private String password;
     private String name;
-    private String id;
     private String title;
     private String text;
     private Boolean isFailed;
@@ -19,13 +17,7 @@ public class DBNote implements Serializable {
         this.isFailed = isFailed;
     }
     
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
+ 
 
     public String getName() {
         return name;
@@ -35,13 +27,7 @@ public class DBNote implements Serializable {
         this.name = name;
     }
 
-    public String getId() {
-        return id;
-    }
 
-    public void setId(String id) {
-        this.id = id;
-    }
 
     public String getTitle() {
         return title;
