@@ -1,5 +1,6 @@
 package arvs.server;
 
+import arvs.dbreq.DBNote;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -18,12 +19,19 @@ public class RMIServer extends UnicastRemoteObject implements RMIServerIntf {
     public String getMessage() {
         return MESSAGE;
     }
+    
+    public DBNote getObj(DBNote note)  {
+        return note;
+    }
 
     public static void main(String args[]) throws Exception {
         System.out.println("RMI server started");
 
+        System.setProperty("java.security.policy", "server.policy");
+        System.setProperty("java.rmi.server.hostname", "127.0.0.1");
+
         try { //special exception handler for registry creation
-            LocateRegistry.createRegistry(8841);
+            LocateRegistry.createRegistry(1099);
             System.out.println("java RMI registry created.");
         } catch (RemoteException e) {
             System.out.println("java RMI registry already exists.");
